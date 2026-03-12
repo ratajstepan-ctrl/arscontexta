@@ -35,11 +35,12 @@ Read these files to understand the methodology and available components. Read th
 
 Automated. No user interaction needed.
 
-Verify Claude Code environment:
+Verify the agent environment:
 
 ```
 Check filesystem:
   .claude/ directory exists         -> platform = "claude-code"
+  .hermes-agent/ directory exists   -> platform = "hermes-agent"
   Neither                           -> platform = "minimal"
   Existing .md notes detected       -> note for proposal (V1: acknowledge and proceed fresh)
 ```
@@ -49,6 +50,7 @@ Record the platform tier in working memory. It controls which artifacts get gene
 | Platform | Context File | Skills Location | Hooks | Automation Ceiling |
 |----------|-------------|-----------------|-------|--------------------|
 | Claude Code | CLAUDE.md | .claude/skills/ | .claude/hooks/ | Full |
+| Hermes-agent | SYSTEM_PROMPT.md | prompts/ | (none) | Convention only |
 | Minimal | README.md | (none) | (none) | Convention only |
 
 ---
@@ -620,6 +622,14 @@ The inbox folder is always generated. It provides zero-friction capture regardle
 This is the most critical generation step. The context file IS the system.
 
 **For Claude Code:** Generate `CLAUDE.md` using `${CLAUDE_PLUGIN_ROOT}/generators/claude-md.md` template.
+**For Hermes-agent:** Generate `SYSTEM_PROMPT.md` using `${CLAUDE_PLUGIN_ROOT}/generators/claude-md.md` template with hermes-agent adaptations from `${CLAUDE_PLUGIN_ROOT}/platforms/hermes-agent/generator.md`. Apply these adaptations before writing:
+  - Replace all hook references with equivalent manual instructions:
+    - session-orient → "At the start of every conversation, read `self/identity.md` and `self/goals.md`."
+    - validate-note → "After writing any note, verify it has `description:` and `topics:` frontmatter before the session ends."
+    - session-capture → "Before closing the conversation, write a session summary to `ops/sessions/YYYYMMDD-HHMMSS.md`."
+    - auto-commit → "After a productive session, run `git add -A && git commit -m 'Session: [brief description]'`."
+  - Replace all `/skill-name` invocations with `prompts/skill-name.md` paste instructions.
+  - Add context window budget section (see `platforms/hermes-agent/generator.md`).
 **For Minimal:** Generate `README.md` as self-contained conventions document.
 
 **Context file composition algorithm:**
@@ -1108,7 +1118,7 @@ Generate the machine-readable derivation manifest. This is the KEY file that ena
 engine_version: "0.2.0"
 research_snapshot: "2026-02-10"
 generated_at: [ISO 8601 timestamp]
-platform: [claude-code | minimal]
+platform: [claude-code | hermes-agent | minimal]
 kernel_version: "1.0"
 
 dimensions:
@@ -1297,6 +1307,7 @@ For each skill:
 4. Write the transformed SKILL.md to the user's skills directory
 
 **For Claude Code:** Write to `.claude/skills/[domain-skill-name]/SKILL.md`
+**For Hermes-agent:** Write to `prompts/[domain-skill-name].md` — strip the Claude Code YAML frontmatter (the `---` block) and retain only the markdown body. The user invokes skills by pasting the file contents into the chat window.
 
 **CRITICAL:** Do NOT generate skills from scratch or improvise their content. Read the source template and transform it. The templates contain quality gates, anti-shortcut language, and handoff formats that must be preserved.
 
@@ -1308,7 +1319,9 @@ Every generated skill must include:
 
 ##### Skill Discoverability Protocol
 
-**Platform limitation:** Claude Code's skill index does not refresh mid-session. Skills created during /setup are not discoverable until the user restarts Claude Code.
+**Claude Code limitation:** Claude Code's skill index does not refresh mid-session. Skills created during /setup are not discoverable until the user restarts Claude Code.
+
+**Hermes-agent:** Skills are plain markdown files in `prompts/`. They are discoverable immediately — the user lists them with `ls prompts/` and invokes them by pasting contents into chat. No restart required.
 
 After creating ALL skill files:
 
@@ -1332,6 +1345,12 @@ These skills were created during initialization. Restart Claude Code to activate
 #### Step 10: Hooks (platform-appropriate)
 
 **Re-read `ops/derivation.md`** for automation level, platform tier, and vocabulary mapping.
+
+**For Hermes-agent:** Skip hook generation entirely. The Hermes-agent platform has no lifecycle
+hook system. Hook behaviors are instead encoded as explicit instructions in `SYSTEM_PROMPT.md`
+(see Step 3 hermes-agent adaptations). Move directly to Step 11.
+
+**For Claude Code:** Continue with the full hook suite below.
 
 ##### Additive Hook Merging Protocol
 
@@ -1365,9 +1384,9 @@ ops/
 
 **Session restore on /clear:** When a user runs /clear, SessionStart fires for the new conversation. The hook detects existing session data (goals.md, ops/ state), re-reads everything, and provides continuity despite context reset.
 
-##### Full Hook Suite (generated for all systems)
+##### Full Hook Suite (generated for Claude Code)
 
-For Claude Code, add to `.claude/settings.json` (using additive merge).
+Add to `.claude/settings.json` (using additive merge).
 
 **Hook format:** Claude Code uses a nested matcher-group structure. Each event type contains an array of matcher groups, each with an optional `matcher` (regex string filtering when the hook fires) and a `hooks` array of handler objects. Events like `SessionStart` and `Stop` don't need matchers — omit the field. Tool events like `PostToolUse` use the tool name as matcher (e.g., `"Write"`, `"Edit|Write"`). Timeout is in seconds.
 
@@ -1647,7 +1666,7 @@ ars contexta
 Your [domain] system is ready.
 
 Configuration:
-  Platform:        [Claude Code / Minimal]
+  Platform:        [Claude Code / Hermes-agent / Minimal]
   Automation: Full — all capabilities from day one
   [Key dimension highlights relevant to the user]
 
@@ -1657,7 +1676,7 @@ Created:
   [templates created]
   16 skills generated (vocabulary-transformed)
   10 plugin commands available via /arscontexta:*
-  [hooks configured]
+  [hooks configured — or "prompts/ installed" for hermes-agent]
   ops/derivation.md      -- the complete record of how this system was derived
   ops/derivation-manifest.md -- machine-readable config for runtime skills
   ops/methodology/       -- vault self-knowledge (query with /ask or browse directly)
@@ -1666,6 +1685,7 @@ Created:
 Kernel Validation: [PASS count] / 15 passed
 [Any warnings to address]
 
+[For Claude Code:]
 IMPORTANT: Restart Claude Code now to activate skills and hooks.
   Skills and hooks take effect after restart — they are not available in the current session.
 
@@ -1676,6 +1696,17 @@ Next steps:
   4. [If qmd not installed: "Install qmd for semantic search: npm install -g @tobilu/qmd (or bun install -g @tobilu/qmd), then run qmd init, qmd update, qmd embed"]
   5. [If personality not enabled: "Run /arscontexta:architect later to tune the agent's voice"]
   6. Try /arscontexta:tutorial for a guided walkthrough
+
+[For Hermes-agent:]
+Next steps:
+  1. Load SYSTEM_PROMPT.md as your system prompt in Ollama / Open WebUI / LM Studio
+  2. Start a conversation and orient the agent: "Read self/ and report current state."
+  3. To run a skill, paste the contents of the relevant prompts/*.md file into chat
+  4. [If qmd not installed and tool-use is enabled: "Install qmd for semantic search:
+        npm install -g @tobilu/qmd, then configure it as an Open WebUI tool"]
+     [If qmd not installed and tool-use is disabled: "Semantic search is not active —
+        enable tool-use in Open WebUI and install qmd to activate it later"]
+  5. See prompts/next.md to get your first task recommendation
 
 ```
 
