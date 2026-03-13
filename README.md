@@ -40,6 +40,45 @@ No templates. No configuration. Just conversation.
 
 ---
 
+## Using with Hermes3 (local Ollama model)
+
+Ars Contexta also runs with locally-hosted models via Ollama (e.g.
+`hermes3:8b-llama3.1-q5_K_M`). The generated system adapts to the platform:
+instead of a `CLAUDE.md` and Claude Code skills, it produces a `SYSTEM_PROMPT.md`
+and plain-markdown prompt files you paste into your chat interface.
+
+**Quick start:**
+
+1. Create a vault directory and mark it as a Hermes-agent vault:
+   ```bash
+   mkdir my-vault && cd my-vault
+   mkdir .hermes-agent
+   ```
+
+2. With Claude Code available, run `/arscontexta:setup` — the engine detects
+   `.hermes-agent/` and generates Hermes-agent artifacts automatically.
+
+3. Without Claude Code, bootstrap manually — see
+   `platforms/hermes-agent/README.md` for step-by-step instructions.
+
+4. Load the generated `SYSTEM_PROMPT.md` as your system prompt:
+   - **Ollama Modelfile:** Paste into the `SYSTEM` block
+   - **Open WebUI:** Set as the system prompt in workspace settings
+   - **LM Studio:** Paste into the system prompt field
+   - **Direct API:** Send as `{"role":"system","content":"..."}` first message
+
+5. Orient the agent in your first message:
+   ```
+   Start a new session. Read self/ and report current state.
+   ```
+
+6. Invoke skills by pasting `prompts/[skill-name].md` into chat.
+
+See `platforms/hermes-agent/README.md` for full documentation and
+`platforms/hermes-agent/generator.md` for how the generation works.
+
+---
+
 ## What It Does
 
 Most AI tools start every session blank. Ars Contexta changes that by generating
@@ -258,7 +297,8 @@ Keep qmd MCP configuration and tool preapproval in `.mcp.json`.
 
 | Dependency | Required | Purpose |
 |-----------|----------|---------|
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) v1.0.33+ | Yes | Plugin host |
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) v1.0.33+ | For Claude Code platform | Plugin host |
+| [Ollama](https://ollama.com) | For Hermes-agent platform | Local model serving |
 | `tree` | Yes | Workspace structure injection |
 | `ripgrep` (`rg`) | Yes | YAML queries, schema validation |
 | [qmd](https://github.com/tobi/qmd) | Optional | Semantic search |
@@ -304,6 +344,7 @@ arscontexta/
 |   +-- use-case-presets.md      # Pre-validated configs
 |-- platforms/                   # Platform-specific adapters
 |   |-- claude-code/
+|   |-- hermes-agent/
 |   +-- shared/
 |-- presets/                     # Pre-validated configurations
 |-- scripts/                     # Utility scripts
@@ -363,6 +404,7 @@ on your conversation.
 | Feature | Status |
 |---------|--------|
 | Claude Code plugin | Available |
+| Hermes-agent (Ollama) support | Available |
 | Marketplace listing | Available |
 | Multi-agent processing | In progress |
 
